@@ -14,6 +14,7 @@ typedef struct chip8_t {
     uint8_t sound_timer;
     uint8_t V[16]; // registers
     uint8_t key[16];
+    bool draw_flag;
 } Chip8;
 
 uint8_t chip8_fontset[80] = {
@@ -35,6 +36,6 @@ uint8_t chip8_fontset[80] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-void init(Chip8 *c);
-void load(Chip8 *c, char *filename);
-void execute(Chip8 *c);
+void b8_init(Chip8 *c);
+void b8_load(Chip8 *c, char *filename);
+void b8_emulate(Chip8 *c);
