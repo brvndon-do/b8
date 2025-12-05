@@ -10,6 +10,8 @@
 #define MS_PER_FRAME (1000 / FPS)
 
 void sdl_init(SDL_Window **window, SDL_Renderer **renderer, int w, int h);
+void sdl_render(Chip8 *c, SDL_Renderer *renderer);
+void sdl_cleanup(SDL_Window *window, SDL_Renderer *renderer);
 
 int main(int argc, char **argv) {
     int screen_width = 800;
@@ -68,11 +70,16 @@ int main(int argc, char **argv) {
 
         b8_emulate(&c);
 
+        if (c.draw_flag) {
+            sdl_render(&c, renderer);
+        }
+
         if (frame_start_tick - previous_tick >= MS_PER_FRAME) {
             if (c.delay_timer > 0) {
                 c.delay_timer--;
             }
 
+            // TODO: need to properly implement sound
             if (c.sound_timer > 0) {
                 c.sound_timer--;
             }
@@ -87,6 +94,9 @@ int main(int argc, char **argv) {
             SDL_Delay(MS_PER_FRAME - frame_time);
         }
     }
+
+    sdl_cleanup(window, renderer);
+    SDL_Quit();
 }
 
 void sdl_init(SDL_Window **window, SDL_Renderer **renderer, int w, int h) {
@@ -108,6 +118,39 @@ void sdl_init(SDL_Window **window, SDL_Renderer **renderer, int w, int h) {
     if (!SDL_SetWindowPosition(*window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED)) {
         SDL_Log("sdl: could not set window position to centered: %s\n", SDL_GetError());
     }
+}
+
+void sdl_render(Chip8 *c, SDL_Renderer *renderer) {
+    const int SCALE = 10;
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+    for (int y = 0; y < CHIP8_HEIGHT; y++) {
+        for (int x = 0; x < CHIP8_WIDTH; x++) {
+            if (c->gfx[y * CHIP8_WIDTH + x]) {
+                SDL_FRect pixel = {
+                    .x = x * SCALE,
+                    .y = y * SCALE,
+                    .w = SCALE,
+                    .h = SCALE
+                };
+
+                SDL_RenderFillRect(renderer, &pixel);
+            }
+        }
+    }
+
+    if (!SDL_RenderPresent(renderer)) {
+        SDL_Log("sdl: render failure: %s\n", SDL_GetError());
+    }
+}
+
+void sdl_cleanup(SDL_Window *window, SDL_Renderer *renderer) {
+    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(renderer);
 }
 
 void b8_init(Chip8 *c) {
@@ -153,10 +196,69 @@ void b8_load(Chip8 *c, char *filename) {
 }
 
 void b8_emulate(Chip8 *c) {
-    c->opcode = (c->memory[c->pc] << 8 | c->memory[c->pc + 1]);
+    c->draw_flag = false;
+
+    uint16_t opcode = (c->memory[c->pc] << 8 | c->memory[c->pc + 1]);
+    c->opcode = opcode;
     c->pc += 2;
 
-    switch (c->opcode & 0xF000) {
+    uint8_t op = (opcode & 0xF000) >> 12;
+    uint8_t x = (opcode & 0x0F00) >> 8;
+    uint8_t y = (opcode & 0x00F0) >> 4;
+    uint8_t n = (opcode & 0x000F);
+    uint8_t kk = (opcode & 0x00FF);
+    uint8_t nnn = (opcode & 0x0FFF);
 
+    switch (op) {
+        case 0x0:
+            switch (kk) {
+                case 0xE0:
+                    memset(c->gfx, 0, sizeof(c->gfx));
+                    c->draw_flag = true;
+                    break;
+                case 0xEE:
+                    c->pc = c->stack[c->sp];
+                    c->sp--;
+                    break;
+            }
+            break;
+        case 0x1:
+            c->pc = nnn;
+            break;
+        case 0x6:
+            c->V[x] = kk;
+            break;
+        case 0x7:
+            c->V[x] += kk;
+            break;
+        case 0xA:
+            c->I = nnn;
+            break;
+        case 0xD:
+            uint8_t vx = c->V[x];
+            uint8_t vy = c->V[y];
+            uint8_t height = n;
+            c->V[0xF] = 0;
+
+            for (int y_line = 0; y_line < height; y_line++) {
+                uint8_t sprite_byte = c->memory[c->I + y_line];
+                for (int x_line = 0; x_line < 8; x_line++) {
+                    uint8_t sprite_pixel = (sprite_byte >> (7 - x_line)) & 1;
+                    int px = (vx + x_line) % CHIP8_WIDTH;
+                    int py = (vy + y_line) % CHIP8_HEIGHT;
+                    int idx = py * CHIP8_WIDTH + px;
+
+                    if (sprite_pixel) {
+                        if (c->gfx[idx]) {
+                            c->V[0xF] = 1;
+                        }
+
+                        c->gfx[idx] ^= 1;
+                    }
+                }
+            }
+
+            c->draw_flag = true;
+            break;
     }
 }

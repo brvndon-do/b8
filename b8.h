@@ -2,10 +2,13 @@
 
 #include <stdint.h>
 
+#define CHIP8_WIDTH 64
+#define CHIP8_HEIGHT 32
+
 typedef struct chip8_t {
-    uint8_t opcode;
+    uint16_t opcode;
     uint8_t memory[4096];
-    uint8_t gfx[64 * 32]; // display
+    uint8_t gfx[CHIP8_WIDTH * CHIP8_HEIGHT]; // display
     uint16_t pc; // program counter
     uint16_t I; // index register
     uint16_t stack[16];
