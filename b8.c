@@ -14,8 +14,8 @@ void sdl_render(Chip8 *c, SDL_Renderer *renderer);
 void sdl_cleanup(SDL_Window *window, SDL_Renderer *renderer);
 
 int main(int argc, char **argv) {
-    int screen_width = 800;
-    int screen_height = 600;
+    int screen_width = CHIP8_WIDTH * CHIP8_PIXEL_SCALE;
+    int screen_height = CHIP8_HEIGHT * CHIP8_PIXEL_SCALE;
 
     int opt;
     char *filename;
@@ -68,7 +68,9 @@ int main(int argc, char **argv) {
             }
         }
 
-        b8_emulate(&c);
+        for (int i = 0; i < 10; i++) {
+            b8_emulate(&c);
+        }
 
         if (c.draw_flag) {
             sdl_render(&c, renderer);
@@ -121,8 +123,6 @@ void sdl_init(SDL_Window **window, SDL_Renderer **renderer, int w, int h) {
 }
 
 void sdl_render(Chip8 *c, SDL_Renderer *renderer) {
-    const int SCALE = 10;
-
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
@@ -132,10 +132,10 @@ void sdl_render(Chip8 *c, SDL_Renderer *renderer) {
         for (int x = 0; x < CHIP8_WIDTH; x++) {
             if (c->gfx[y * CHIP8_WIDTH + x]) {
                 SDL_FRect pixel = {
-                    .x = x * SCALE,
-                    .y = y * SCALE,
-                    .w = SCALE,
-                    .h = SCALE
+                    .x = x * CHIP8_PIXEL_SCALE,
+                    .y = y * CHIP8_PIXEL_SCALE,
+                    .w = CHIP8_PIXEL_SCALE,
+                    .h = CHIP8_PIXEL_SCALE
                 };
 
                 SDL_RenderFillRect(renderer, &pixel);
@@ -225,14 +225,77 @@ void b8_emulate(Chip8 *c) {
         case 0x1:
             c->pc = nnn;
             break;
+        case 0x2:
+            c->stack[c->sp] = c->pc;
+            c->sp++;
+            c->pc = nnn;
+            break;
+        case 0x3:
+            if (c->V[x] == kk) {
+                c->pc += 2;
+            }
+            break;
+        case 0x4:
+            if (c->V[x] != kk) {
+                c->pc += 2;
+            }
+            break;
+        case 0x5:
+            if (c->V[x] == c->V[y]) {
+                c->pc += 2;
+            }
+            break;
         case 0x6:
             c->V[x] = kk;
             break;
         case 0x7:
             c->V[x] += kk;
             break;
+        case 0x8:
+            switch (n) {
+                case 0x0:
+                    c->V[x] = c->V[y];
+                    break;
+                case 0x1:
+                    c->V[x] |= c->V[y];
+                    break;
+                case 0x2:
+                    c->V[x] &= c->V[y];
+                    break;
+                case 0x3:
+                    c->V[x] ^= c->V[y];
+                    break;
+                case 0x4:
+                    uint16_t sum = c->V[x] + c->V[y];
+                    c->V[0xF] = sum > 0xFF ? 1 : 0;
+                    c->V[x] = sum & 0xFF;
+                    break;
+                case 0x5:
+                    c->V[0xF] = c->V[x] > c->V[y] ? 1 : 0;
+                    c->V[x] -= c->V[y];
+                    break;
+                case 0x6:
+                    break;
+                case 0x7:
+                    c->V[0xF] = c->V[y] > c->V[x] ? 1 : 0;
+                    c->V[x] = c->V[y] - c->V[x];
+                    break;
+                case 0xE:
+                    break;
+            }
+            break;
+        case 0x9:
+            if (c->V[x] != c->V[y]) {
+                c->pc += 2;
+            }
+            break;
         case 0xA:
             c->I = nnn;
+            break;
+        case 0xB:
+            c->pc = nnn + c->V[0x0];
+            break;
+        case 0xC:
             break;
         case 0xD:
             uint8_t vx = c->V[x];
@@ -259,6 +322,16 @@ void b8_emulate(Chip8 *c) {
             }
 
             c->draw_flag = true;
+            break;
+        case 0xE:
+            switch (y) {
+                case 0x9E:
+                    break;
+                case 0xA1:
+                    break;
+            }
+            break;
+        case 0xF:
             break;
     }
 }

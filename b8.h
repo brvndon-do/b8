@@ -4,6 +4,7 @@
 
 #define CHIP8_WIDTH 64
 #define CHIP8_HEIGHT 32
+#define CHIP8_PIXEL_SCALE 10
 
 typedef struct chip8_t {
     uint16_t opcode;
