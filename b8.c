@@ -199,15 +199,15 @@ void b8_emulate(Chip8 *c) {
     c->draw_flag = false;
 
     uint16_t opcode = (c->memory[c->pc] << 8 | c->memory[c->pc + 1]);
-    c->opcode = opcode;
-    c->pc += 2;
-
     uint8_t op = (opcode & 0xF000) >> 12;
     uint8_t x = (opcode & 0x0F00) >> 8;
     uint8_t y = (opcode & 0x00F0) >> 4;
     uint8_t n = (opcode & 0x000F);
     uint8_t kk = (opcode & 0x00FF);
-    uint8_t nnn = (opcode & 0x0FFF);
+    uint16_t nnn = (opcode & 0x0FFF);
+
+    c->opcode = opcode;
+    c->pc += 2;
 
     switch (op) {
         case 0x0:
@@ -275,12 +275,16 @@ void b8_emulate(Chip8 *c) {
                     c->V[x] -= c->V[y];
                     break;
                 case 0x6:
+                    c->V[0xF] = c->V[x] & 0x1;
+                    c->V[x] >>= 1;
                     break;
                 case 0x7:
                     c->V[0xF] = c->V[y] > c->V[x] ? 1 : 0;
                     c->V[x] = c->V[y] - c->V[x];
                     break;
                 case 0xE:
+                    c->V[0xF] = (c->V[x] & 0x80) >> 7;
+                    c->V[x] <<= 1;
                     break;
             }
             break;
