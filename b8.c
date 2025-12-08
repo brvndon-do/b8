@@ -1,8 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <getopt.h>
 #include <SDL3/SDL.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 #include "b8.h"
 
 #define APP_NAME "b8"
@@ -11,9 +12,12 @@
 
 void sdl_init(SDL_Window **window, SDL_Renderer **renderer, int w, int h);
 void sdl_render(Chip8 *c, SDL_Renderer *renderer);
+int sdl_map_key(SDL_Keycode key);
 void sdl_cleanup(SDL_Window *window, SDL_Renderer *renderer);
 
 int main(int argc, char **argv) {
+    srand(time(NULL));
+
     int screen_width = CHIP8_WIDTH * CHIP8_PIXEL_SCALE;
     int screen_height = CHIP8_HEIGHT * CHIP8_PIXEL_SCALE;
 
@@ -63,6 +67,20 @@ int main(int argc, char **argv) {
                 case SDL_EVENT_QUIT:
                     is_running = false;
                     break;
+                case SDL_EVENT_KEY_DOWN: {
+                    int key = sdl_map_key(event.key.scancode);
+                    if (key != -1) {
+                        c.key[key] = 1;
+                    }
+                    break;
+                }
+                case SDL_EVENT_KEY_UP: {
+                    int key = sdl_map_key(event.key.scancode);
+                    if (key != -1) {
+                        c.key[key] = 0;
+                    }
+                    break;
+                }
                 default:
                     break;
             }
@@ -145,6 +163,45 @@ void sdl_render(Chip8 *c, SDL_Renderer *renderer) {
 
     if (!SDL_RenderPresent(renderer)) {
         SDL_Log("sdl: render failure: %s\n", SDL_GetError());
+    }
+}
+
+int sdl_map_key(SDL_Keycode key) {
+    switch (key) {
+        case SDLK_1:
+            return 0x1;
+        case SDLK_2:
+            return 0x2;
+        case SDLK_3:
+            return 0x3;
+        case SDLK_4:
+            return 0xC;
+        case SDLK_Q:
+            return 0x4;
+        case SDLK_W:
+            return 0x5;
+        case SDLK_E:
+            return 0x6;
+        case SDLK_R:
+            return 0xD;
+        case SDLK_A:
+            return 0x7;
+        case SDLK_S:
+            return 0x8;
+        case SDLK_D:
+            return 0x9;
+        case SDLK_F:
+            return 0xE;
+        case SDLK_Z:
+            return 0xA;
+        case SDLK_X:
+            return 0x0;
+        case SDLK_C:
+            return 0xB;
+        case SDLK_V:
+            return 0xF;
+        default:
+            return -1;
     }
 }
 
@@ -300,6 +357,7 @@ void b8_emulate(Chip8 *c) {
             c->pc = nnn + c->V[0x0];
             break;
         case 0xC:
+            c->V[x] = (rand() & 0xFF) && kk;
             break;
         case 0xD:
             uint8_t vx = c->V[x];
@@ -328,14 +386,74 @@ void b8_emulate(Chip8 *c) {
             c->draw_flag = true;
             break;
         case 0xE:
-            switch (y) {
+            switch (kk) {
                 case 0x9E:
+                    if (c->key[c->V[x]]) {
+                        c->pc += 2;
+                    }
                     break;
                 case 0xA1:
+                    if (!c->key[c->V[x]]) {
+                        c->pc += 2;
+                    }
                     break;
             }
             break;
         case 0xF:
+            switch (y) {
+                case 0x0:
+                    switch (n) {
+                        case 0x7:
+                            c->V[x] = c->delay_timer;
+                            break;
+                        case 0xA:
+                            bool key_pressed = false;
+                            for (int i = 0; i < 16; i++) {
+                                if (c->key[i]) {
+                                    c->V[x] = i;
+                                    key_pressed = true;
+                                    break;
+                                }
+                            }
+
+                            if (!key_pressed) {
+                                c->pc -= 2;
+                            }
+                            break;
+                    }
+                    break;
+                case 0x1:
+                    switch (n) {
+                        case 0x5:
+                            c->delay_timer = c->V[x];
+                            break;
+                        case 0x8:
+                            c->sound_timer = c->V[x];
+                            break;
+                        case 0xE:
+                            c->I += c->V[x];
+                            break;
+                    }
+                    break;
+                case 0x2:
+                    c->I = 0x50 + (c->V[x] * 5);
+                    break;
+                case 0x3:
+                    c->memory[c->I] = c->V[x] / 100;
+                    c->memory[c->I + 1] = (c->V[x] / 10) % 10;
+                    c->memory[c->I + 2] = c->V[x] % 10;
+                    break;
+                case 0x5:
+                    for (int i = 0; i <= x; i++) {
+                        c->memory[c->I + i] = c->V[i];
+                    }
+                    break;
+                case 0x6:
+                    for (int i = 0; i <= x; i++) {
+                        c->V[i] = c->memory[c->I + i];
+                    }
+                    break;
+            }
             break;
     }
 }
