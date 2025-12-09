@@ -9,10 +9,12 @@
 #define APP_NAME "b8"
 #define FPS 60
 #define MS_PER_FRAME (1000 / FPS)
+#define INSTRUCTIONS_PER_FRAME 5
 
 void sdl_init(SDL_Window **window, SDL_Renderer **renderer, int w, int h);
 void sdl_render(Chip8 *c, SDL_Renderer *renderer);
 int sdl_map_key(SDL_Keycode key);
+void sdl_beep();
 void sdl_cleanup(SDL_Window *window, SDL_Renderer *renderer);
 
 int main(int argc, char **argv) {
@@ -86,7 +88,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < INSTRUCTIONS_PER_FRAME; i++) {
             b8_emulate(&c);
         }
 
@@ -101,6 +103,7 @@ int main(int argc, char **argv) {
 
             // TODO: need to properly implement sound
             if (c.sound_timer > 0) {
+                sdl_beep();
                 c.sound_timer--;
             }
 
@@ -168,41 +171,45 @@ void sdl_render(Chip8 *c, SDL_Renderer *renderer) {
 
 int sdl_map_key(SDL_Keycode key) {
     switch (key) {
-        case SDLK_1:
+        case SDL_SCANCODE_1:
             return 0x1;
-        case SDLK_2:
+        case SDL_SCANCODE_2:
             return 0x2;
-        case SDLK_3:
+        case SDL_SCANCODE_3:
             return 0x3;
-        case SDLK_4:
+        case SDL_SCANCODE_4:
             return 0xC;
-        case SDLK_Q:
+        case SDL_SCANCODE_Q:
             return 0x4;
-        case SDLK_W:
+        case SDL_SCANCODE_W:
             return 0x5;
-        case SDLK_E:
+        case SDL_SCANCODE_E:
             return 0x6;
-        case SDLK_R:
+        case SDL_SCANCODE_R:
             return 0xD;
-        case SDLK_A:
+        case SDL_SCANCODE_A:
             return 0x7;
-        case SDLK_S:
+        case SDL_SCANCODE_S:
             return 0x8;
-        case SDLK_D:
+        case SDL_SCANCODE_D:
             return 0x9;
-        case SDLK_F:
+        case SDL_SCANCODE_F:
             return 0xE;
-        case SDLK_Z:
+        case SDL_SCANCODE_Z:
             return 0xA;
-        case SDLK_X:
+        case SDL_SCANCODE_X:
             return 0x0;
-        case SDLK_C:
+        case SDL_SCANCODE_C:
             return 0xB;
-        case SDLK_V:
+        case SDL_SCANCODE_V:
             return 0xF;
         default:
             return -1;
     }
+}
+
+void sdl_beep() {
+    // TODO: implement beeping audio
 }
 
 void sdl_cleanup(SDL_Window *window, SDL_Renderer *renderer) {
@@ -274,8 +281,8 @@ void b8_emulate(Chip8 *c) {
                     c->draw_flag = true;
                     break;
                 case 0xEE:
-                    c->pc = c->stack[c->sp];
                     c->sp--;
+                    c->pc = c->stack[c->sp];
                     break;
             }
             break;
@@ -357,7 +364,7 @@ void b8_emulate(Chip8 *c) {
             c->pc = nnn + c->V[0x0];
             break;
         case 0xC:
-            c->V[x] = (rand() & 0xFF) && kk;
+            c->V[x] = (rand() & 0xFF) & kk;
             break;
         case 0xD:
             uint8_t vx = c->V[x];
