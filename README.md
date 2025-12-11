@@ -1,5 +1,15 @@
 # b8 Chip Emulator
 
+## Usage
+
+To compile, simply run: `make`. To use, run: `./b8 <rom>`.
+
+Flags:
+
+- `-w`: sets the width of the screen
+- `-h`: sets the height of the screen
+- `-f`: sets the instructions per frame (some ROMs perform better at a higher emulation rate)
+
 ## CHIP-8 Documentation
 
 Components:
