@@ -10,6 +10,8 @@ Flags:
 - `-h`: sets the height of the screen
 - `-f`: sets the instructions per frame (some ROMs perform better at a higher emulation rate)
 
+Some notes: I may be handling emulation rate incorrectly. The logic for framerate capping feels incorrect, but because I've used this pattern in my previous [project](https://github.com/brvndon-do/akira/blob/master/src/main.c#L69), I also just copied it here. I'll have to revisit this, but for now I think this is okay 🤷‍♂️.
+
 ## CHIP-8 Documentation
 
 Components:
