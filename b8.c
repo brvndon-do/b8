@@ -9,7 +9,6 @@
 #define APP_NAME "b8"
 #define FPS 60
 #define MS_PER_FRAME (1000 / FPS)
-#define INSTRUCTIONS_PER_FRAME 5
 
 void sdl_init(SDL_Window **window, SDL_Renderer **renderer, int w, int h);
 void sdl_render(Chip8 *c, SDL_Renderer *renderer);
@@ -22,12 +21,16 @@ int main(int argc, char **argv) {
 
     int screen_width = CHIP8_WIDTH * CHIP8_PIXEL_SCALE;
     int screen_height = CHIP8_HEIGHT * CHIP8_PIXEL_SCALE;
+    int instructions_per_frame = 5;
 
     int opt;
     char *filename;
 
-    while ((opt = getopt(argc, argv, "w:h:")) != -1) {
+    while ((opt = getopt(argc, argv, "f:w:h:")) != -1) {
         switch (opt) {
+            case 'f':
+                instructions_per_frame = atoi(optarg);
+                break;
             case 'w':
                 screen_width = atoi(optarg);
                 break;
@@ -88,7 +91,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        for (int i = 0; i < INSTRUCTIONS_PER_FRAME; i++) {
+        for (int i = 0; i < instructions_per_frame; i++) {
             b8_emulate(&c);
         }
 
@@ -167,6 +170,8 @@ void sdl_render(Chip8 *c, SDL_Renderer *renderer) {
     if (!SDL_RenderPresent(renderer)) {
         SDL_Log("sdl: render failure: %s\n", SDL_GetError());
     }
+
+    c->draw_flag = false;
 }
 
 int sdl_map_key(SDL_Keycode key) {
@@ -260,8 +265,6 @@ void b8_load(Chip8 *c, char *filename) {
 }
 
 void b8_emulate(Chip8 *c) {
-    c->draw_flag = false;
-
     uint16_t opcode = (c->memory[c->pc] << 8 | c->memory[c->pc + 1]);
     uint8_t op = (opcode & 0xF000) >> 12;
     uint8_t x = (opcode & 0x0F00) >> 8;
